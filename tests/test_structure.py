@@ -1,5 +1,7 @@
 """Tests for the initial FastAPI skeleton and production reference data."""
 
+from pathlib import Path
+
 from app.data.deck import DECK
 from app.data.spreads import SPREADS, resolve_spread_id
 from app.data.validation import validate_reference_data
@@ -20,6 +22,22 @@ def test_reference_data_is_valid() -> None:
 
 def test_deck_image_urls_follow_frontend_contract() -> None:
     assert all(card.image_url == f"/cards/{card.id}.jpg" for card in DECK)
+
+
+def test_all_card_image_files_exist() -> None:
+    image_paths = [Path("cards") / f"{card.id}.jpg" for card in DECK]
+
+    assert len(image_paths) == 78
+    assert all(path.exists() for path in image_paths)
+
+
+def test_card_static_mount_can_resolve_local_file() -> None:
+    static_route = next(route for route in app.routes if getattr(route, "path", None) == "/cards")
+    full_path, stat_result = static_route.app.lookup_path("m00.jpg")
+
+    assert stat_result is not None
+    assert Path(full_path).name == "m00.jpg"
+    assert Path(full_path).read_bytes().startswith(b"\xff\xd8")
 
 
 def test_spread_counts_match_spec() -> None:

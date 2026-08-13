@@ -28,3 +28,5 @@ dist/
 *.swp
 .DS_Store
 taro_front/
+
+scripts/
