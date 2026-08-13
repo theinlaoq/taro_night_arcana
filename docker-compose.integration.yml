@@ -5,12 +5,7 @@ services:
     image: taro-night-arcana:integration
     ports:
       - "8000:8000"
-    environment:
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
-      LLM_API_KEY: ${LLM_API_KEY:-local-dev-key}
-      LLM_MODEL: ${LLM_MODEL:-qwen2.5:0.5b}
-      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-20}
-      SESSION_TTL_SECONDS: ${SESSION_TTL_SECONDS:-600}
-      REVERSAL_PROBABILITY: ${REVERSAL_PROBABILITY:-0.35}
+    env_file:
+      - .env
     extra_hosts:
       - "host.docker.internal:host-gateway"
