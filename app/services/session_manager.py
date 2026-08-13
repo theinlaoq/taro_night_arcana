@@ -48,6 +48,7 @@ class SessionManager:
         self._ttl = timedelta(seconds=ttl_seconds)
         self._clock = clock or (lambda: datetime.now(UTC))
         self._sessions: dict[str, TarotSession] = {}
+        self._expired_session_ids: set[str] = set()
         self._registry_lock = asyncio.Lock()
 
     async def create(
@@ -77,11 +78,14 @@ class SessionManager:
         async with self._registry_lock:
             session = self._sessions.get(session_id)
             if session is None:
+                if session_id in self._expired_session_ids:
+                    raise session_expired(session_id)
                 raise session_not_found(session_id)
 
             now = self._clock()
             if self._is_expired(session, now):
                 del self._sessions[session_id]
+                self._expired_session_ids.add(session_id)
                 raise session_expired(session_id)
 
             session.last_activity_at = now
@@ -91,6 +95,7 @@ class SessionManager:
         """Delete a session if it exists. Used by future reset endpoint."""
         async with self._registry_lock:
             self._sessions.pop(session_id, None)
+            self._expired_session_ids.discard(session_id)
 
     def _cleanup_expired(self, now: datetime) -> None:
         expired_ids = [
@@ -100,6 +105,7 @@ class SessionManager:
         ]
         for session_id in expired_ids:
             del self._sessions[session_id]
+            self._expired_session_ids.add(session_id)
 
     def _is_expired(self, session: TarotSession, now: datetime) -> bool:
         return now - session.last_activity_at > self._ttl

@@ -126,3 +126,9 @@ class DrawCardResponse(BaseModel):
     verdict_text: str | None = Field(default=None, alias="verdictText")
 
     model_config = ConfigDict(populate_by_name=True)
+
+
+class OkResponse(BaseModel):
+    """Generic successful response for idempotent commands."""
+
+    ok: bool = True

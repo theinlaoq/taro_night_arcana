@@ -34,3 +34,12 @@ async def validation_error_handler(_: object, exc: RequestValidationError) -> JS
         status_code=422,
         content={"code": ErrorCode.VALIDATION_ERROR, "message": str(exc)},
     )
+
+
+@app.exception_handler(Exception)
+async def unknown_error_handler(_: object, exc: Exception) -> JSONResponse:
+    """Keep unexpected errors inside the same top-level error envelope."""
+    return JSONResponse(
+        status_code=500,
+        content={"code": ErrorCode.UNKNOWN_ERROR, "message": str(exc) or "Unknown error"},
+    )

@@ -114,6 +114,10 @@ class TarotService:
             session.draws_in_order.append(record)
             return self._to_draw_response(session, record)
 
+    async def delete_session(self, session_id: str) -> None:
+        """Delete a session idempotently."""
+        await self._session_manager.delete(session_id)
+
     def _to_public_spread(self, spread) -> SpreadPublic:
         return SpreadPublic(
             id=spread.id,

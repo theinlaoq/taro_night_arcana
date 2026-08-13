@@ -14,6 +14,7 @@ from app.schemas.tarot import (
     CreateSessionResponse,
     DrawCardRequest,
     DrawCardResponse,
+    OkResponse,
 )
 from app.services.tarot_service import TarotService
 
@@ -40,3 +41,10 @@ async def create_session(request: CreateSessionRequest) -> CreateSessionResponse
 async def draw_card(session_id: str, request: DrawCardRequest) -> DrawCardResponse:
     """Draw one card from an existing tarot session."""
     return await tarot_service.draw_card(session_id=session_id, slot=request.slot)
+
+
+@router.delete("/sessions/{session_id}", response_model=OkResponse)
+async def delete_session(session_id: str) -> OkResponse:
+    """Delete a tarot session idempotently."""
+    await tarot_service.delete_session(session_id)
+    return OkResponse(ok=True)
