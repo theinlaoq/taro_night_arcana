@@ -3,7 +3,23 @@
 from dataclasses import dataclass
 from typing import Protocol
 
-from app.schemas.tarot import Tone
+from app.schemas.tarot import Tone, YesNoAnswer
+
+
+@dataclass(frozen=True)
+class InterpretationCard:
+    """One drawn card in the interpretation context."""
+
+    position_index: int
+    position_name: str
+    card_id: str
+    card_name: str
+    reversed: bool
+    meaning: str
+    arcana: str
+    element: str | None
+    verdict: YesNoAnswer | None = None
+    verdict_text: str | None = None
 
 
 @dataclass(frozen=True)
@@ -13,7 +29,8 @@ class InterpretationRequest:
     question: str
     tone: Tone
     spread_id: str
-    cards: tuple[str, ...]
+    spread_name: str
+    cards: tuple[InterpretationCard, ...]
 
 
 class TarotInterpreter(Protocol):

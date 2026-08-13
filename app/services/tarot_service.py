@@ -13,16 +13,19 @@ from app.core.config import settings
 from app.core.errors import ErrorCode, TarotError, spread_not_found
 from app.data.deck import DECK
 from app.data.spreads import SPREADS, resolve_spread_id
-from app.llm.base import TarotInterpreter
+from app.llm.base import InterpretationCard, InterpretationRequest, TarotInterpreter
 from app.schemas.tarot import (
     CreateSessionResponse,
     DeckPublic,
     DrawCardResponse,
     DrawnCardPublic,
+    InterpretResponse,
     SpreadPosition,
     SpreadPublic,
+    Tone,
     YesNoAnswer,
 )
+from app.services.fallback_interpreter import FallbackInterpreter
 from app.services.session_manager import DrawRecord, SessionManager, TarotSession
 
 
@@ -37,6 +40,7 @@ class TarotService:
         rng: random.Random | None = None,
     ) -> None:
         self._interpreter = interpreter
+        self._fallback_interpreter = FallbackInterpreter()
         self._deck = DECK
         self._spreads = SPREADS
         self._cards_by_id = {card.id: card for card in self._deck}
@@ -118,6 +122,38 @@ class TarotService:
         """Delete a session idempotently."""
         await self._session_manager.delete(session_id)
 
+    async def interpret(
+        self,
+        session_id: str,
+        question: str,
+        tone: Tone,
+    ) -> InterpretResponse:
+        """Interpret a completed spread through the LLM, falling back locally."""
+        session = await self._session_manager.get_active(session_id)
+        async with session.lock:
+            spread = self._spreads[session.spread_id]
+            if len(session.draws_in_order) < spread.cards_required:
+                raise TarotError(
+                    ErrorCode.SPREAD_INCOMPLETE,
+                    "Spread is not complete",
+                    status.HTTP_409_CONFLICT,
+                )
+            request = self._to_interpretation_request(session, question, tone)
+
+        if self._interpreter is not None:
+            try:
+                text = await self._interpreter.interpret(request)
+                if text and text.strip():
+                    return InterpretResponse(type="ai", text=text.strip())
+            except Exception:
+                pass
+
+        return InterpretResponse(
+            type="basic",
+            text=self._fallback_interpreter.interpret(request),
+            reason="LLM_UNAVAILABLE",
+        )
+
     def _to_public_spread(self, spread) -> SpreadPublic:
         return SpreadPublic(
             id=spread.id,
@@ -162,4 +198,44 @@ class TarotService:
             ),
             verdict=verdict,
             verdictText=verdict_text,
+        )
+
+    def _to_interpretation_request(
+        self,
+        session: TarotSession,
+        question: str,
+        tone: Tone,
+    ) -> InterpretationRequest:
+        spread = self._spreads[session.spread_id]
+        cards = tuple(
+            self._to_interpretation_card(session, record)
+            for record in session.draws_in_order
+        )
+        return InterpretationRequest(
+            question=question,
+            tone=tone,
+            spread_id=spread.id,
+            spread_name=spread.name,
+            cards=cards,
+        )
+
+    def _to_interpretation_card(
+        self,
+        session: TarotSession,
+        record: DrawRecord,
+    ) -> InterpretationCard:
+        spread = self._spreads[session.spread_id]
+        card = self._cards_by_id[record.card_id]
+        draw_response = self._to_draw_response(session, record)
+        return InterpretationCard(
+            position_index=record.position_index,
+            position_name=spread.positions[record.position_index],
+            card_id=card.id,
+            card_name=card.name,
+            reversed=record.reversed,
+            meaning=draw_response.card.meaning,
+            arcana=card.arcana,
+            element=card.element,
+            verdict=draw_response.verdict,
+            verdict_text=draw_response.verdict_text,
         )

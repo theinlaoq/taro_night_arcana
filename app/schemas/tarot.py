@@ -128,6 +128,21 @@ class DrawCardResponse(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
 
+class InterpretRequest(BaseModel):
+    """Request body for POST /api/tarot/sessions/{sessionId}/interpret."""
+
+    question: str = Field(default="", max_length=300)
+    tone: Tone
+
+
+class InterpretResponse(BaseModel):
+    """Response body for an interpretation request."""
+
+    type: str
+    text: str
+    reason: str | None = None
+
+
 class OkResponse(BaseModel):
     """Generic successful response for idempotent commands."""
 
