@@ -2,16 +2,6 @@
 
 Backend для интерактивного сервиса «Таро» в шоу-руме.
 
-Сейчас в репозитории сформирован только каркас проекта. Реализацию будем добавлять постепенно по слоям:
-
-1. данные карт и раскладов;
-2. серверные сессии;
-3. REST API;
-4. LLM-адаптер;
-5. fallback-интерпретация;
-6. static-раздача карт;
-7. Docker и тесты.
-
 ## Структура
 
 ```text
@@ -34,6 +24,16 @@ source .venv/bin/activate
 pip install -e ".[dev]"
 uvicorn app.main:app --reload
 ```
+
+Документация API после запуска:
+
+```text
+http://127.0.0.1:8000/docs
+http://127.0.0.1:8000/openapi.json
+```
+
+Интеграционная инструкция для frontend-разработчика:
+[docs/INTEGRATION_HANDOFF.md](/home/alexey/Projects/taro_night_arcana/docs/INTEGRATION_HANDOFF.md)
 
 ## Тесты
 
