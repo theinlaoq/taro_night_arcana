@@ -101,6 +101,34 @@ async def test_interpret_requires_completed_spread() -> None:
 
 
 @pytest.mark.asyncio
+async def test_api_interpret_validation_errors_for_invalid_tone_and_long_question() -> None:
+    from app.main import app
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        created = await client.post(
+            "/api/tarot/sessions",
+            json={"spreadId": "day", "reversals": False},
+        )
+        session_id = created.json()["sessionId"]
+        await client.post(f"/api/tarot/sessions/{session_id}/draw", json={"slot": 0})
+
+        invalid_tone = await client.post(
+            f"/api/tarot/sessions/{session_id}/interpret",
+            json={"question": "", "tone": "grim"},
+        )
+        long_question = await client.post(
+            f"/api/tarot/sessions/{session_id}/interpret",
+            json={"question": "x" * 301, "tone": "warm"},
+        )
+
+    assert invalid_tone.status_code == 422
+    assert invalid_tone.json()["code"] == ErrorCode.VALIDATION_ERROR
+    assert long_question.status_code == 422
+    assert long_question.json()["code"] == ErrorCode.VALIDATION_ERROR
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("interpreter", [None, RecordingInterpreter(""), RaisingInterpreter()])
 async def test_interpret_falls_back_when_llm_is_unavailable(interpreter) -> None:
     service = _service(interpreter=interpreter)
@@ -214,3 +242,26 @@ async def test_openai_compatible_adapter_returns_none_on_timeout_or_empty_text()
 
     assert await adapter.interpret(request) is None
     await empty_client.aclose()
+
+
+@pytest.mark.asyncio
+async def test_full_flow_create_three_draw_draw_draw_interpret_delete() -> None:
+    service = _service(interpreter=RecordingInterpreter("AI full flow"))
+
+    session = await service.create_session(spread_id="three", reversals=False)
+    first = await service.draw_card(session.session_id, slot=0)
+    second = await service.draw_card(session.session_id, slot=1)
+    third = await service.draw_card(session.session_id, slot=2)
+    interpretation = await service.interpret(
+        session_id=session.session_id,
+        question="Что важно учесть?",
+        tone=Tone.DRY,
+    )
+    await service.delete_session(session.session_id)
+
+    assert [first.position.index, second.position.index, third.position.index] == [0, 1, 2]
+    assert interpretation.type == "ai"
+    assert interpretation.text == "AI full flow"
+    with pytest.raises(TarotError) as exc_info:
+        await service.draw_card(session.session_id, slot=3)
+    assert exc_info.value.code == ErrorCode.SESSION_NOT_FOUND

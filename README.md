@@ -28,4 +28,20 @@ tests/          автотесты
 
 ## Локальный запуск
 
-Команды добавим после первой реализации FastAPI-приложения.
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -e ".[dev]"
+uvicorn app.main:app --reload
+```
+
+## Тесты
+
+Одна команда для локальной, Docker- и CI-проверки:
+
+```bash
+python -m pytest
+```
+
+Тесты не требуют доступной реальной LLM. Варианты LLM success, timeout,
+exception и empty response проверяются через управляемые mock/stub-ответы.
