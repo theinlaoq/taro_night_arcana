@@ -59,3 +59,70 @@ class SpreadDefinition(BaseModel):
     def cards_required(self) -> int:
         """Number of cards the visitor must draw for this spread."""
         return len(self.positions)
+
+
+class CreateSessionRequest(BaseModel):
+    """Request body for POST /api/tarot/sessions."""
+
+    spread_id: str = Field(alias="spreadId")
+    reversals: bool = True
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DrawCardRequest(BaseModel):
+    """Request body for POST /api/tarot/sessions/{sessionId}/draw."""
+
+    slot: int
+
+
+class SpreadPublic(BaseModel):
+    """Spread description returned to the frontend."""
+
+    id: str
+    name: str
+    cards_required: int = Field(alias="cardsRequired")
+    positions: list[SpreadPosition]
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DeckPublic(BaseModel):
+    """Public deck metadata."""
+
+    size: int
+
+
+class CreateSessionResponse(BaseModel):
+    """Response body for session creation."""
+
+    session_id: str = Field(alias="sessionId")
+    spread: SpreadPublic
+    deck: DeckPublic
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DrawnCardPublic(BaseModel):
+    """Drawn card returned to the frontend."""
+
+    id: str
+    name: str
+    reversed: bool
+    image_url: str = Field(alias="imageUrl")
+    meaning: str
+    arcana: str
+    element: str | None
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class DrawCardResponse(BaseModel):
+    """Response body for drawing one card."""
+
+    position: SpreadPosition
+    card: DrawnCardPublic
+    verdict: YesNoAnswer | None = None
+    verdict_text: str | None = Field(default=None, alias="verdictText")
+
+    model_config = ConfigDict(populate_by_name=True)
