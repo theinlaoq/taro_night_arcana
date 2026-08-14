@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import httpx
+import pytest
+
 from app.data.deck import DECK
 from app.data.spreads import SPREADS, resolve_spread_id
 from app.data.validation import validate_reference_data
@@ -65,6 +68,23 @@ def test_card_static_mount_can_resolve_local_file() -> None:
     assert stat_result is not None
     assert Path(full_path).name == "m00.jpg"
     assert Path(full_path).read_bytes().startswith(b"\xff\xd8")
+
+
+@pytest.mark.asyncio
+async def test_browser_frontend_origin_is_allowed_by_cors() -> None:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.options(
+            "/api/tarot/sessions",
+            headers={
+                "Origin": "http://127.0.0.1:5173",
+                "Access-Control-Request-Method": "POST",
+                "Access-Control-Request-Headers": "content-type",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://127.0.0.1:5173"
 
 
 def test_spread_counts_match_spec() -> None:

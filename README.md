@@ -96,6 +96,7 @@ cp .env.example .env
 Пример для Linux + Docker host network + Ollama на той же машине:
 
 ```text
+CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
 LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=local-dev-key
 LLM_MODEL=qwen2.5:1.5b
@@ -120,6 +121,13 @@ LLM_VALIDATE_RESPONSES=false
 сырой `type=ai`. Для интеграционной сдачи безопаснее оставить `true`.
 
 После изменения `.env` backend/container нужно перезапустить.
+
+`CORS_ORIGINS` должен содержать origin frontend-разработчика. Для локальной
+статической проверки из папки `taro_front` обычно достаточно:
+
+```text
+CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+```
 
 ## Локальный запуск
 
@@ -152,6 +160,34 @@ docker run --rm \
 
 ```bash
 docker compose -f docker-compose.integration.yml up --build
+```
+
+## Локальная проверка frontend
+
+В папке `taro_front` лежит статическая HTML-сборка. После запуска backend можно
+поднять простой static server:
+
+```bash
+cd taro_front
+python3 -m http.server 5173
+```
+
+Откройте:
+
+```text
+http://127.0.0.1:5173/Ночной%20Аркан.dc.html
+```
+
+Файл `tarot-backend-connector.js` по умолчанию обращается к:
+
+```text
+http://127.0.0.1:8000
+```
+
+Если backend запущен на другом адресе, до загрузки connector можно задать:
+
+```html
+<script>window.TAROT_BACKEND_URL = "http://backend-host:8000";</script>
 ```
 
 ## Smoke Checks

@@ -4,12 +4,20 @@ from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes import router as api_router
+from app.core.config import settings
 from app.core.errors import ErrorCode, TarotError
 
 
 app = FastAPI(title="Night Arcana Tarot API")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origin_list,
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+    allow_headers=["Content-Type", "Authorization"],
+)
 app.include_router(api_router)
 app.mount("/cards", StaticFiles(directory="cards"), name="cards")
 
