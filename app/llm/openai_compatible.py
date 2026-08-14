@@ -33,6 +33,9 @@ def build_messages(request: InterpretationRequest) -> list[dict[str, str]]:
             "Упомяни конкретные карты, позиции и прямое/перевёрнутое положение. "
             "Учитывай вопрос, если он задан. Заверши одним практическим или "
             "рефлексивным вопросом к посетителю.",
+            "Не задавай уточняющий вопрос вместо интерпретации. Не отвечай одной "
+            "фразой. Не используй markdown bullets, нумерованные списки или советы "
+            "в формате инструкции.",
         ]
     )
 
@@ -78,7 +81,7 @@ class OpenAICompatibleTarotInterpreter:
         payload = {
             "model": self._settings.llm_model,
             "messages": build_messages(request),
-            "temperature": 0.8,
+            "temperature": 0.4,
             "max_tokens": 700,
         }
         headers = {}

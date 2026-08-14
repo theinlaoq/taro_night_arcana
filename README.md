@@ -57,21 +57,29 @@ frontend -> Tarot backend -> локальный OpenAI-compatible LLM endpoint
 http://127.0.0.1:11434/v1
 ```
 
-Если backend запущен в Docker, а Ollama работает на Docker host, используйте:
-
-```text
-http://host.docker.internal:11434/v1
-```
-
-Compose-файл уже добавляет `host.docker.internal:host-gateway` для Linux.
-На Linux Ollama при этом должна слушать адрес, доступный из Docker, а не только
-host `127.0.0.1`. Можно запустить Ollama так:
+Если команда ниже отвечает JSON, Ollama уже запущена:
 
 ```bash
-OLLAMA_HOST=0.0.0.0:11434 ollama serve
+curl http://127.0.0.1:11434/v1/models
 ```
 
-Или запустить backend-контейнер с host network и оставить:
+Если `ollama serve` пишет `bind: address already in use`, это обычно значит,
+что Ollama уже запущена как сервис. Запускать второй server не нужно.
+
+Проверить скачанные модели:
+
+```bash
+ollama list
+```
+
+Проверить модели, загруженные в память:
+
+```bash
+ollama ps
+```
+
+Для Linux-разработки backend-контейнер запускается с host network, поэтому
+в `.env` можно оставить:
 
 ```text
 LLM_BASE_URL=http://127.0.0.1:11434/v1
@@ -85,19 +93,31 @@ LLM_BASE_URL=http://127.0.0.1:11434/v1
 cp .env.example .env
 ```
 
-Пример для Docker + Ollama на Docker host:
+Пример для Linux + Docker host network + Ollama на той же машине:
 
 ```text
-LLM_BASE_URL=http://host.docker.internal:11434/v1
+LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=local-dev-key
-LLM_MODEL=qwen2.5:0.5b
+LLM_MODEL=qwen2.5:1.5b
 LLM_TIMEOUT_SECONDS=20
+LLM_VALIDATE_RESPONSES=true
 SESSION_TTL_SECONDS=600
 REVERSAL_PROBABILITY=0.35
 ```
 
 Настоящие credentials нужно передавать только через environment variables.
 Не добавляйте реальные ключи в Docker image или repository.
+
+`LLM_VALIDATE_RESPONSES=true` включает проверку качества LLM-ответа. Если модель
+отвечает слишком коротко, не упоминает выпавшие карты или нарушает формат,
+backend вернёт fallback. Для отладки маленьких локальных моделей можно временно
+поставить:
+
+```text
+LLM_VALIDATE_RESPONSES=false
+```
+
+После изменения `.env` backend/container нужно перезапустить.
 
 ## Локальный запуск
 
@@ -116,19 +136,7 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 docker build -t taro-night-arcana:integration .
 ```
 
-Запуск против Ollama на Docker host. Все runtime-параметры берутся из `.env`:
-
-```bash
-docker run --rm \
-  --name taro-night-arcana \
-  --add-host=host.docker.internal:host-gateway \
-  -p 8000:8000 \
-  --env-file .env \
-  taro-night-arcana:integration
-```
-
-Linux-вариант с host network, если Ollama слушает `127.0.0.1:11434`.
-В `.env` при этом должно быть `LLM_BASE_URL=http://127.0.0.1:11434/v1`:
+Запуск через Docker. Все runtime-параметры берутся из `.env`:
 
 ```bash
 docker run --rm \
@@ -138,7 +146,7 @@ docker run --rm \
   taro-night-arcana:integration
 ```
 
-Запуск через Compose. Compose тоже читает `.env`:
+Запуск через Compose. Compose тоже читает `.env` и использует host network:
 
 ```bash
 docker compose -f docker-compose.integration.yml up --build
@@ -170,7 +178,8 @@ Create, draw, interpret, delete:
 SESSION_ID=$(curl -s -X POST http://127.0.0.1:8000/api/tarot/sessions \
   -H "Content-Type: application/json" \
   -d '{"spreadId":"three","reversals":false}' \
-  | python -c "import sys,json; print(json.load(sys.stdin)['sessionId'])")
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['sessionId'])")
+echo $SESSION_ID
 
 curl -s -X POST http://127.0.0.1:8000/api/tarot/sessions/$SESSION_ID/draw \
   -H "Content-Type: application/json" \

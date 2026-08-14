@@ -3,9 +3,6 @@ services:
     build:
       context: .
     image: taro-night-arcana:integration
-    ports:
-      - "8000:8000"
+    network_mode: host
     env_file:
       - .env
-    extra_hosts:
-      - "host.docker.internal:host-gateway"

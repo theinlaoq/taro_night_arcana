@@ -14,6 +14,17 @@ from app.services.session_manager import SessionManager
 from app.services.tarot_service import TarotService
 
 
+GOOD_AI_TEXT = (
+    "Прошлое показывает Звезду в прямом положении: это про тихую надежду после "
+    "шума и возможность снова увидеть направление без давления.\n\n"
+    "Настоящее добавляет Девятку Пентаклей как знак самодостаточности и уюта, "
+    "который лучше укреплять спокойными практическими решениями.\n\n"
+    "Будущее поддерживает Сила: мягкое упрямство здесь важнее рывка, потому что "
+    "ситуация просит устойчивости, а не драматичного жеста. Какой самый простой "
+    "шаг вы можете сделать сегодня?"
+)
+
+
 class RecordingInterpreter:
     """Fake LLM adapter that records requests and returns configured text."""
 
@@ -53,7 +64,7 @@ async def _complete_three_card_spread(service: TarotService) -> str:
 
 @pytest.mark.asyncio
 async def test_interpret_returns_ai_when_llm_returns_text() -> None:
-    interpreter = RecordingInterpreter("Первый абзац.\n\nВторой абзац?\n")
+    interpreter = RecordingInterpreter(GOOD_AI_TEXT)
     service = _service(interpreter=interpreter)
     session_id = await _complete_three_card_spread(service)
 
@@ -64,7 +75,7 @@ async def test_interpret_returns_ai_when_llm_returns_text() -> None:
     )
 
     assert response.type == "ai"
-    assert response.text == "Первый абзац.\n\nВторой абзац?"
+    assert response.text.endswith("?")
     assert response.reason is None
     assert len(interpreter.requests) == 1
     request = interpreter.requests[0]
@@ -76,7 +87,7 @@ async def test_interpret_returns_ai_when_llm_returns_text() -> None:
 
 @pytest.mark.asyncio
 async def test_interpret_can_be_called_again_with_different_tone() -> None:
-    interpreter = RecordingInterpreter("AI text")
+    interpreter = RecordingInterpreter(GOOD_AI_TEXT)
     service = _service(interpreter=interpreter)
     session_id = await _complete_three_card_spread(service)
 
@@ -144,6 +155,54 @@ async def test_interpret_falls_back_when_llm_is_unavailable(interpreter) -> None
     assert response.reason == "LLM_UNAVAILABLE"
     assert "Это не прогноз" in response.text
     assert "Какой один маленький шаг" in response.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "bad_text",
+    [
+        "Как таро? Как у тебя всё получается сейчас?",
+        "Для этого лучше обсудить события лично.",
+        "- Двойка Кубков важна.\n- Сделайте вывод?",
+        "Это длинный ответ про ситуацию, но без названия конкретной карты. "
+        "Он выглядит почти как интерпретация, однако не привязан к раскладу, "
+        "позиции или выпавшему символу, поэтому backend не должен отдавать его "
+        "пользователю как качественный AI-result?",
+    ],
+)
+async def test_interpret_falls_back_when_llm_returns_unusable_text(bad_text: str) -> None:
+    service = _service(interpreter=RecordingInterpreter(bad_text))
+    session_id = await _complete_three_card_spread(service)
+
+    response = await service.interpret(
+        session_id=session_id,
+        question="Что важно учесть?",
+        tone=Tone.WARM,
+    )
+
+    assert response.type == "basic"
+    assert response.reason == "LLM_UNAVAILABLE"
+
+
+@pytest.mark.asyncio
+async def test_llm_response_validation_can_be_disabled() -> None:
+    service = TarotService(
+        session_manager=SessionManager(ttl_seconds=600),
+        interpreter=RecordingInterpreter("Как таро? Как у тебя всё получается сейчас?"),
+        reversal_probability=0,
+        validate_llm_responses=False,
+        rng=Random(1),
+    )
+    session_id = await _complete_three_card_spread(service)
+
+    response = await service.interpret(
+        session_id=session_id,
+        question="Что важно учесть?",
+        tone=Tone.WARM,
+    )
+
+    assert response.type == "ai"
+    assert response.text == "Как таро? Как у тебя всё получается сейчас?"
 
 
 def test_prompt_injection_question_is_escaped() -> None:
@@ -246,7 +305,7 @@ async def test_openai_compatible_adapter_returns_none_on_timeout_or_empty_text()
 
 @pytest.mark.asyncio
 async def test_full_flow_create_three_draw_draw_draw_interpret_delete() -> None:
-    service = _service(interpreter=RecordingInterpreter("AI full flow"))
+    service = _service(interpreter=RecordingInterpreter(GOOD_AI_TEXT))
 
     session = await service.create_session(spread_id="three", reversals=False)
     first = await service.draw_card(session.session_id, slot=0)
@@ -261,7 +320,7 @@ async def test_full_flow_create_three_draw_draw_draw_interpret_delete() -> None:
 
     assert [first.position.index, second.position.index, third.position.index] == [0, 1, 2]
     assert interpretation.type == "ai"
-    assert interpretation.text == "AI full flow"
+    assert interpretation.text.endswith("?")
     with pytest.raises(TarotError) as exc_info:
         await service.draw_card(session.session_id, slot=3)
     assert exc_info.value.code == ErrorCode.SESSION_NOT_FOUND

@@ -37,6 +37,7 @@ class TarotService:
         session_manager: SessionManager | None = None,
         interpreter: TarotInterpreter | None = None,
         reversal_probability: float | None = None,
+        validate_llm_responses: bool | None = None,
         rng: random.Random | None = None,
     ) -> None:
         self._interpreter = interpreter
@@ -49,6 +50,11 @@ class TarotService:
             settings.reversal_probability
             if reversal_probability is None
             else reversal_probability
+        )
+        self._validate_llm_responses = (
+            settings.llm_validate_responses
+            if validate_llm_responses is None
+            else validate_llm_responses
         )
         self._rng = rng or random.Random()
 
@@ -143,7 +149,10 @@ class TarotService:
         if self._interpreter is not None:
             try:
                 text = await self._interpreter.interpret(request)
-                if text and text.strip():
+                if text and (
+                    not self._validate_llm_responses
+                    or self._is_usable_ai_response(text, request)
+                ):
                     return InterpretResponse(type="ai", text=text.strip())
             except Exception:
                 pass
@@ -239,3 +248,25 @@ class TarotService:
             verdict=draw_response.verdict,
             verdict_text=draw_response.verdict_text,
         )
+
+    def _is_usable_ai_response(self, text: str, request: InterpretationRequest) -> bool:
+        """Reject low-quality model output so the UI can use deterministic fallback."""
+        stripped = text.strip()
+        if len(stripped) < 180:
+            return False
+
+        if not stripped.endswith("?"):
+            return False
+
+        if not any(card.card_name in stripped for card in request.cards):
+            return False
+
+        lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+        if any(line.startswith(("-", "*", "•")) for line in lines):
+            return False
+
+        paragraphs = [part.strip() for part in stripped.split("\n\n") if part.strip()]
+        if len(paragraphs) < 2:
+            return False
+
+        return True
