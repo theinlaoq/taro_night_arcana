@@ -100,7 +100,7 @@ LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=local-dev-key
 LLM_MODEL=qwen2.5:1.5b
 LLM_TIMEOUT_SECONDS=20
-LLM_VALIDATE_RESPONSES=true
+LLM_VALIDATE_RESPONSES=false
 SESSION_TTL_SECONDS=600
 REVERSAL_PROBABILITY=0.35
 ```
@@ -110,8 +110,7 @@ REVERSAL_PROBABILITY=0.35
 
 `LLM_VALIDATE_RESPONSES=true` включает проверку качества LLM-ответа. Если модель
 отвечает слишком коротко, не упоминает выпавшие карты или нарушает формат,
-backend вернёт fallback. Для отладки маленьких локальных моделей можно временно
-поставить:
+backend вернёт fallback.
 
 ```text
 LLM_VALIDATE_RESPONSES=false
