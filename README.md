@@ -100,7 +100,7 @@ LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=local-dev-key
 LLM_MODEL=qwen2.5:1.5b
 LLM_TIMEOUT_SECONDS=20
-LLM_VALIDATE_RESPONSES=false
+LLM_VALIDATE_RESPONSES=true
 SESSION_TTL_SECONDS=600
 REVERSAL_PROBABILITY=0.35
 ```
@@ -115,6 +115,9 @@ backend вернёт fallback.
 ```text
 LLM_VALIDATE_RESPONSES=false
 ```
+
+Это можно использовать для локальной проверки слабой модели, если нужно увидеть
+сырой `type=ai`. Для интеграционной сдачи безопаснее оставить `true`.
 
 После изменения `.env` backend/container нужно перезапустить.
 
@@ -219,3 +222,15 @@ GET    /cards/{cardId}.jpg
 GET    /docs
 GET    /openapi.json
 ```
+
+## Известные ограничения
+
+- Сессии хранятся в памяти одного backend-процесса. При рестарте контейнера
+  активные расклады сбрасываются.
+- Docker-образ содержит только backend и изображения карт. Локальная LLM
+  запускается отдельно и подключается через `LLM_BASE_URL`.
+- Качество `type=ai` зависит от выбранной локальной модели. Если endpoint
+  недоступен, отвечает с ошибкой, timeout или пустым ответом, backend возвращает
+  deterministic fallback `type=basic`.
+- После заморозки API contract изменения endpoint, полей request/response и
+  кодов ошибок нужно согласовывать с frontend-разработчиком.

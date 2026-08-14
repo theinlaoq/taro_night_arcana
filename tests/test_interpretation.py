@@ -50,6 +50,7 @@ def _service(interpreter=None) -> TarotService:
         session_manager=SessionManager(ttl_seconds=600),
         interpreter=interpreter,
         reversal_probability=0,
+        validate_llm_responses=True,
         rng=Random(1),
     )
 
