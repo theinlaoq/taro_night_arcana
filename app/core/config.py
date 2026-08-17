@@ -11,11 +11,14 @@ class Settings(BaseSettings):
     llm_api_key: str = "local-dev-key"
     llm_model: str = "local-model"
     llm_timeout_seconds: float = 20
-    llm_validate_responses: bool = True
     session_ttl_seconds: int = 600
     reversal_probability: float = 0.35
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
     @property
     def cors_origin_list(self) -> list[str]:

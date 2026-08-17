@@ -1,6 +1,7 @@
 """Tests for the initial FastAPI skeleton and production reference data."""
 
 from pathlib import Path
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -16,6 +17,23 @@ from app.services.tarot_service import TarotService
 def test_project_skeleton_has_health_route() -> None:
     route_paths = {route.path for route in app.routes if hasattr(route, "path")}
     assert "/health" in route_paths
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("available", "expected"),
+    [(True, "available"), (False, "unavailable")],
+)
+async def test_health_reports_backend_ok_and_llm_status(monkeypatch, available, expected) -> None:
+    from app import main as app_main
+
+    monkeypatch.setattr(app_main, "llm_is_available", AsyncMock(return_value=available))
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as client:
+        response = await client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok", "llm": expected}
 
 
 def test_reference_data_is_valid() -> None:

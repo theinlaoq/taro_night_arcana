@@ -50,7 +50,6 @@ def _service(interpreter=None) -> TarotService:
         session_manager=SessionManager(ttl_seconds=600),
         interpreter=interpreter,
         reversal_probability=0,
-        validate_llm_responses=True,
         rng=Random(1),
     )
 
@@ -159,41 +158,9 @@ async def test_interpret_falls_back_when_llm_is_unavailable(interpreter) -> None
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize(
-    "bad_text",
-    [
-        "Как таро? Как у тебя всё получается сейчас?",
-        "Для этого лучше обсудить события лично.",
-        "- Двойка Кубков важна.\n- Сделайте вывод?",
-        "Это длинный ответ про ситуацию, но без названия конкретной карты. "
-        "Он выглядит почти как интерпретация, однако не привязан к раскладу, "
-        "позиции или выпавшему символу, поэтому backend не должен отдавать его "
-        "пользователю как качественный AI-result?",
-    ],
-)
-async def test_interpret_falls_back_when_llm_returns_unusable_text(bad_text: str) -> None:
-    service = _service(interpreter=RecordingInterpreter(bad_text))
-    session_id = await _complete_three_card_spread(service)
-
-    response = await service.interpret(
-        session_id=session_id,
-        question="Что важно учесть?",
-        tone=Tone.WARM,
-    )
-
-    assert response.type == "basic"
-    assert response.reason == "LLM_UNAVAILABLE"
-
-
-@pytest.mark.asyncio
-async def test_llm_response_validation_can_be_disabled() -> None:
-    service = TarotService(
-        session_manager=SessionManager(ttl_seconds=600),
-        interpreter=RecordingInterpreter("Как таро? Как у тебя всё получается сейчас?"),
-        reversal_probability=0,
-        validate_llm_responses=False,
-        rng=Random(1),
-    )
+async def test_interpret_returns_any_non_empty_llm_text_as_ai() -> None:
+    text = "Как таро? Как у тебя всё получается сейчас?"
+    service = _service(interpreter=RecordingInterpreter(text))
     session_id = await _complete_three_card_spread(service)
 
     response = await service.interpret(
@@ -203,7 +170,8 @@ async def test_llm_response_validation_can_be_disabled() -> None:
     )
 
     assert response.type == "ai"
-    assert response.text == "Как таро? Как у тебя всё получается сейчас?"
+    assert response.reason is None
+    assert response.text == text
 
 
 def test_prompt_injection_question_is_escaped() -> None:

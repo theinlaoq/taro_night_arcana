@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.routes import router as api_router
 from app.core.config import settings
 from app.core.errors import ErrorCode, TarotError
+from app.llm.openai_compatible import llm_is_available
 
 
 app = FastAPI(title="Night Arcana Tarot API")
@@ -25,7 +26,8 @@ app.mount("/cards", StaticFiles(directory="cards"), name="cards")
 @app.get("/health")
 async def health() -> dict[str, str]:
     """Health endpoint required by the showroom integration"""
-    return {"status": "ok"}
+    llm_status = "available" if await llm_is_available(settings) else "unavailable"
+    return {"status": "ok", "llm": llm_status}
 
 
 @app.exception_handler(TarotError)

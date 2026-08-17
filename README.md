@@ -101,24 +101,12 @@ LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=local-dev-key
 LLM_MODEL=qwen2.5:1.5b
 LLM_TIMEOUT_SECONDS=20
-LLM_VALIDATE_RESPONSES=true
 SESSION_TTL_SECONDS=600
 REVERSAL_PROBABILITY=0.35
 ```
 
 Настоящие credentials нужно передавать только через environment variables.
 Не добавляйте реальные ключи в Docker image или repository.
-
-`LLM_VALIDATE_RESPONSES=true` включает проверку качества LLM-ответа. Если модель
-отвечает слишком коротко, не упоминает выпавшие карты или нарушает формат,
-backend вернёт fallback.
-
-```text
-LLM_VALIDATE_RESPONSES=false
-```
-
-Это можно использовать для локальной проверки слабой модели, если нужно увидеть
-сырой `type=ai`. Для интеграционной сдачи безопаснее оставить `true`.
 
 После изменения `.env` backend/container нужно перезапустить.
 
@@ -196,6 +184,18 @@ Health:
 
 ```bash
 curl http://127.0.0.1:8000/health
+```
+
+Ответ:
+
+```json
+{"status":"ok","llm":"available"}
+```
+
+или, если LLM endpoint недоступен:
+
+```json
+{"status":"ok","llm":"unavailable"}
 ```
 
 OpenAPI:
