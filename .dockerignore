@@ -13,6 +13,6 @@ build/
 dist/
 .git/
 .gitignore
-taro_front/
+frontend/
 scripts/
 tz.md

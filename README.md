@@ -13,6 +13,8 @@ app/
   schemas/      Pydantic-модели request/response
   services/     бизнес-логика Таро
 cards/          локальные изображения карт
+frontend/       статическая HTML-сборка frontend
+deploy/         reverse proxy конфигурация
 tests/          автотесты
 ```
 
@@ -29,10 +31,16 @@ exception и empty response проверяются через управляем
 
 ## Адрес сервиса
 
-Локальный адрес по умолчанию:
+Локальный адрес backend по умолчанию:
 
 ```text
 http://127.0.0.1:8000
+```
+
+Полный frontend + backend stack при запуске через production compose:
+
+```text
+http://127.0.0.1:8080
 ```
 
 Документация API для dev/stage:
@@ -96,7 +104,8 @@ cp .env.example .env
 Пример для Linux + Docker host network + Ollama на той же машине:
 
 ```text
-CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+HTTP_PORT=8080
+CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173,http://127.0.0.1:8080,http://localhost:8080
 LLM_BASE_URL=http://127.0.0.1:11434/v1
 LLM_API_KEY=local-dev-key
 LLM_MODEL=qwen2.5:1.5b
@@ -105,16 +114,33 @@ SESSION_TTL_SECONDS=600
 REVERSAL_PROBABILITY=0.35
 ```
 
+Для полного `docker-compose.prod.yml`, где backend работает внутри Docker
+network, локальная Ollama на хост-машине должна указываться так:
+
+```text
+LLM_BASE_URL=http://host.docker.internal:11434/v1
+```
+
 Настоящие credentials нужно передавать только через environment variables.
 Не добавляйте реальные ключи в Docker image или repository.
 
 После изменения `.env` backend/container нужно перезапустить.
 
 `CORS_ORIGINS` должен содержать origin frontend-разработчика. Для локальной
-статической проверки из папки `taro_front` обычно достаточно:
+статической проверки из папки `frontend` обычно достаточно:
 
 ```text
 CORS_ORIGINS=http://127.0.0.1:5173,http://localhost:5173
+```
+
+Для сервера `dev.tarot.g-309.ru` production-настройки будут такими:
+
+```text
+HTTP_PORT=80
+CORS_ORIGINS=http://dev.tarot.g-309.ru
+LLM_BASE_URL=https://llm-server.example/v1
+LLM_API_KEY=...
+LLM_MODEL=...
 ```
 
 ## Локальный запуск
@@ -150,13 +176,53 @@ docker run --rm \
 docker compose -f docker-compose.integration.yml up --build
 ```
 
-## Локальная проверка frontend
+## Полный Stack Через Compose
 
-В папке `taro_front` лежит статическая HTML-сборка. После запуска backend можно
+Этот вариант поднимает frontend, backend и nginx reverse proxy одной командой.
+Локально nginx отдаёт сайт на `http://127.0.0.1:8080`.
+
+Если LLM/Ollama запущена на этой же машине, в `.env` для этого режима укажите:
+
+```text
+LLM_BASE_URL=http://host.docker.internal:11434/v1
+```
+
+```bash
+docker compose -f docker-compose.prod.yml up --build
+```
+
+Для фонового запуска на сервере:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+На сервере с доменом `dev.tarot.g-309.ru` nginx будет принимать обычный HTTP
+и проксировать:
+
+```text
+/              -> frontend
+/api/tarot/... -> backend
+/cards/...     -> backend
+/health        -> backend
+/docs          -> backend
+/openapi.json  -> backend
+```
+
+Frontend использует относительные запросы к `/api/tarot/...`, поэтому на домене
+ему не нужен адрес `127.0.0.1:8000`.
+
+Frontend runtime-зависимости, которые раньше могли грузиться с CDN, лежат
+локально в `frontend/vendor/`. Поэтому штатный пользовательский сценарий не
+требует внешних CDN.
+
+## Локальная проверка frontend без Docker
+
+В папке `frontend` лежит статическая HTML-сборка. После запуска backend можно
 поднять простой static server:
 
 ```bash
-cd taro_front
+cd frontend
 python3 -m http.server 5173
 ```
 
@@ -166,13 +232,18 @@ python3 -m http.server 5173
 http://127.0.0.1:5173/Ночной%20Аркан.dc.html
 ```
 
-Файл `tarot-backend-connector.js` по умолчанию обращается к:
+Файл `tarot-backend-connector.js` по умолчанию обращается к тому же origin:
 
 ```text
-http://127.0.0.1:8000
+/api/tarot/...
 ```
 
-Если backend запущен на другом адресе, до загрузки connector можно задать:
+Для удобства локальной разработки есть исключение: если frontend открыт на
+`http://127.0.0.1:5173` или `http://localhost:5173`, connector автоматически
+ходит в backend на `http://127.0.0.1:8000`.
+
+Если frontend запускается отдельно от backend на другом адресе и без
+nginx/reverse proxy, до загрузки connector можно задать:
 
 ```html
 <script>window.TAROT_BACKEND_URL = "http://backend-host:8000";</script>
@@ -263,8 +334,8 @@ GET    /openapi.json
 
 - Сессии хранятся в памяти одного backend-процесса. При рестарте контейнера
   активные расклады сбрасываются.
-- Docker-образ содержит только backend и изображения карт. Локальная LLM
-  запускается отдельно и подключается через `LLM_BASE_URL`.
+- Full-stack compose собирает отдельные образы backend и frontend. Локальная
+  LLM запускается отдельно и подключается через `LLM_BASE_URL`.
 - Качество `type=ai` зависит от выбранной локальной модели. Если endpoint
   недоступен, отвечает с ошибкой, timeout или пустым ответом, backend возвращает
   deterministic fallback `type=basic`.

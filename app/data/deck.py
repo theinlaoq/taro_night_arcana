@@ -1,6 +1,6 @@
 """Rider-Waite-Smith deck reference data.
 
-Meanings and yes/no tables are transferred from taro_front/mock-tarot-backend.js.
+Meanings and yes/no tables are transferred from frontend/mock-tarot-backend.js.
 """
 
 from app.schemas.tarot import CardDefinition

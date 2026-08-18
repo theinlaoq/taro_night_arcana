@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./local-resources.js"></script>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<title>Ночной аркан</title>
+<meta name="theme-color" content="#070d09">
+<script src="tarot-backend-connector.js"></script>
+<style>
+@keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes pulse { 0%,100% { opacity: .4; } 50% { opacity: 1; } }
+body { margin: 0; background: #070d09; }
+a { color: #34d17c; }
+a:hover { color: #7fe0ab; }
+*:focus-visible { outline: 2px solid #34d17c; outline-offset: 2px; }
+@media (max-height: 660px) { .spread-stats { display: none !important; } }
+</style>
+</helmet>
+
+<div style="height: 100vh; overflow: hidden; background: radial-gradient(900px 520px at 88% -8%, rgba(52,209,124,.14) 0%, rgba(52,209,124,0) 62%), radial-gradient(700px 400px at 6% 4%, rgba(52,209,124,.06) 0%, rgba(52,209,124,0) 60%), #070d09; color: #e6efe9; font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; display: flex; flex-direction: column;">
+
+  <nav style="flex: 0 0 auto; display: flex; align-items: center; gap: 20px; padding: 12px 40px; border-bottom: 1px solid #16221b;">
+    <div style="display: flex; align-items: center; gap: 10px;">
+      <span style="width: 26px; height: 26px; border-radius: 8px; background: linear-gradient(150deg, #1d3d2b, #0f2419); border: 1px solid #2c5740; display: flex; align-items: center; justify-content: center;">
+        <span style="width: 9px; height: 9px; transform: rotate(45deg); border: 1.5px solid #34d17c; border-radius: 1px;"></span>
+      </span>
+      <span style="font-family: Georgia, 'Times New Roman', serif; font-size: 18px; font-weight: 600; color: #34d17c;">Аркан</span>
+    </div>
+    <span style="font-size: 12px; color: #6f857a;">Академическая студия гаданий</span>
+    <div style="display: flex; gap: 4px; margin-left: 12px;">
+      <span style="font-size: 13px; padding: 6px 14px; border-radius: 8px; background: {{ navABg }}; border: 1px solid {{ navABorder }}; color: {{ navAFg }};">Расклад</span>
+      <span style="font-size: 13px; padding: 6px 14px; border-radius: 8px; background: {{ navBBg }}; border: 1px solid {{ navBBorder }}; color: {{ navBFg }};">Карты</span>
+      <span style="font-size: 13px; padding: 6px 14px; border-radius: 8px; background: {{ navCBg }}; border: 1px solid {{ navCBorder }}; color: {{ navCFg }};">Разбор</span>
+    </div>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 10px; padding: 5px 12px 5px 5px; border: 1px solid #1e2f26; border-radius: 999px;">
+      <span style="width: 24px; height: 24px; border-radius: 999px; background: #16321f; border: 1px solid #2c5740; display: flex; align-items: center; justify-content: center; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 10px; color: #7fe0ab;">{{ deckSize }}</span>
+      <span style="font-size: 12px; color: #86998d;">карт в колоде</span>
+    </div>
+  </nav>
+
+  <sc-if value="{{ hasError }}" hint-placeholder-val="{{ false }}">
+    <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 10px 40px 0; padding: 9px 14px; border-radius: 10px; background: #2a1614; border: 1px solid #5c2f28; color: #f0cdc7; font-size: 13px;">
+      <span>{{ errorText }}</span>
+      <button type="button" onClick="{{ onDismissError }}" style="cursor: pointer; background: none; border: 0; color: #c98d84; font-family: inherit; font-size: 12px;" style-hover="color: #f0cdc7;">Скрыть</button>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ onStart }}" hint-placeholder-val="{{ true }}">
+    <section data-screen-label="01 Старт" style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: center; gap: clamp(14px, 3vh, 30px); padding: clamp(12px, 2.4vh, 20px) 40px clamp(16px, 3vh, 32px); max-width: 1420px; width: 100%; margin: 0 auto; box-sizing: border-box; animation: fadeUp .4s ease both;">
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; gap: 48px;">
+        <div>
+          <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #6f857a; margin-bottom: clamp(6px, 1.6vh, 14px);">Открытый доступ · без регистрации</div>
+          <h1 style="font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: clamp(30px, 5.4vh, 52px); line-height: 1.08; letter-spacing: -0.01em; margin: 0 0 clamp(6px, 1.4vh, 12px);">Колода готова. <span style="color: #34d17c;">Выбирайте расклад</span></h1>
+          <p style="font-size: clamp(13px, 1.6vh, 15px); line-height: 1.55; color: #86998d; max-width: 62ch; margin: 0;">Пять раскладов в работе. Откройте карточку, чтобы перейти к столу. Мы честно перемешаем 78 картонок, вы честно увидите в них смысл — это и есть весь метод.</p>
+        </div>
+        <div style="flex: 0 0 auto;">
+          <button type="button" onClick="{{ onQuickDay }}" style="cursor: pointer; font-family: inherit; font-weight: 500; font-size: 14px; padding: 11px 22px; border-radius: 10px; background: linear-gradient(165deg, #4fe294, #23b365); border: 0; color: #06170e; white-space: nowrap; transition: filter .16s ease;" style-hover="filter: brightness(1.08);">Карта дня — сразу</button>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; min-height: 0;">
+        <sc-for list="{{ catalog }}" as="s" hint-placeholder-count="5">
+          <div style="display: flex; flex-direction: column; background: linear-gradient(180deg, #0d1712 0%, #0a1310 100%); border: 1px solid #1a2a21; border-radius: 14px; padding: clamp(11px, 1.8vh, 16px) 16px clamp(10px, 1.6vh, 14px); transition: border-color .18s ease, transform .18s ease;" style-hover="border-color: #2f5e43; transform: translateY(-3px);">
+            <div style="display: flex; align-items: center; gap: 7px; margin-bottom: 12px;">
+              <span style="width: 5px; height: 5px; border-radius: 999px; background: #34d17c; flex: 0 0 auto;"></span>
+              <span style="font-size: 10px; padding: 3px 8px; border-radius: 999px; background: rgba(52,209,124,.10); border: 1px solid rgba(52,209,124,.26); color: #7fe0ab; white-space: nowrap;">{{ s.badge }}</span>
+            </div>
+            <div style="font-family: Georgia, 'Times New Roman', serif; font-size: clamp(16px, 2.2vh, 19px); line-height: 1.24; color: #e6efe9; margin-bottom: 6px; text-wrap: pretty;">{{ s.name }}</div>
+            <div style="font-size: 12.5px; line-height: 1.5; color: #7b8f81; margin-bottom: clamp(10px, 2vh, 16px); text-wrap: pretty;">{{ s.blurb }}</div>
+            <div class="spread-stats" style="display: flex; gap: 20px; margin-top: auto; padding-bottom: clamp(9px, 1.6vh, 14px);">
+              <div>
+                <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #5f7469; margin-bottom: 3px;">Карт</div>
+                <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: clamp(15px, 2vh, 17px); color: #e6efe9;">{{ s.cards }}</div>
+              </div>
+              <div>
+                <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #5f7469; margin-bottom: 3px;">Минут</div>
+                <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: clamp(15px, 2vh, 17px); color: #e6efe9;">{{ s.mins }}</div>
+              </div>
+            </div>
+            <div style="border-top: 1px solid #16221b; padding-top: clamp(8px, 1.4vh, 12px); margin-top: auto;">
+              <button type="button" onClick="{{ s.onPick }}" style="width: 100%; cursor: pointer; font-family: inherit; font-size: 13px; padding: 9px 12px; border-radius: 9px; background: #10251a; border: 1px solid #24503a; color: #7fe0ab; transition: background .16s ease, border-color .16s ease;" style-hover="background: #163524; border-color: #34d17c;">Открыть стол</button>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ onDraw }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="02 Карты" style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; padding: 12px 40px 18px; max-width: 1420px; width: 100%; margin: 0 auto; box-sizing: border-box; animation: fadeUp .4s ease both;">
+      <div style="flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 32px;">
+        <div style="display: flex; align-items: center; gap: 14px; min-width: 0;">
+          <button type="button" onClick="{{ onReset }}" style="cursor: pointer; background: none; border: 0; padding: 0; font-family: inherit; font-size: 12px; color: #6f857a; white-space: nowrap;" style-hover="color: #34d17c;">← Назад</button>
+          <span style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 11px; color: #6f857a; white-space: nowrap;">{{ spreadCode }}</span>
+          <h2 style="font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 22px; margin: 0; white-space: nowrap;">{{ spreadName }}</h2>
+          <span style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 12px; color: #7fe0ab; white-space: nowrap;">{{ pickHint }}</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex: 1 1 auto; min-width: 0; justify-content: flex-end;">
+          <div style="display: flex; gap: 4px; padding: 3px; border: 1px solid #1a2a21; border-radius: 10px; background: #0b1410; flex: 0 0 auto;">
+            <sc-for list="{{ tones }}" as="t" hint-placeholder-count="3">
+              <button type="button" onClick="{{ t.onPick }}" style="cursor: pointer; font-family: inherit; font-size: 12px; padding: 6px 12px; border-radius: 7px; background: {{ t.bg }}; border: 1px solid {{ t.border }}; color: {{ t.fg }}; white-space: nowrap;">{{ t.name }}</button>
+            </sc-for>
+          </div>
+          <input value="{{ question }}" onChange="{{ onQuestion }}" maxLength="300" placeholder="Вопрос" style="flex: 1 1 200px; min-width: 110px; max-width: 320px; box-sizing: border-box; background: #0c1510; border: 1px solid #1e2f26; border-radius: 10px; color: #e6efe9; font-family: inherit; font-size: 13px; padding: 9px 12px;">
+        </div>
+      </div>
+
+      <div style="flex: 4 1 0; min-height: 0; overflow: hidden; display: flex; align-items: stretch; justify-content: center; padding: 6px 0;">
+        <sc-if value="{{ creating }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; justify-content: center; font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 13px; color: #7fe0ab; animation: pulse 1.4s ease-in-out infinite;">Тасуем колоду…</div>
+        </sc-if>
+        <sc-if value="{{ showFan }}" hint-placeholder-val="{{ false }}">
+          <div style="position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden;">
+            <sc-for list="{{ fanCards }}" as="c" hint-placeholder-count="9">
+              <div style="position: absolute; left: {{ c.left }}%; top: {{ c.top }}%; width: {{ c.w }}%; aspect-ratio: 61 / 100; transform: translateX(-50%) rotate({{ c.rot }}deg); z-index: {{ c.z }}; opacity: {{ c.opacity }}; pointer-events: {{ c.pe }}; transition: opacity .35s ease;">
+                <div onClick="{{ c.onPick }}" style="width: 100%; height: 100%; border-radius: 7px; cursor: {{ c.cursor }}; transition: transform .18s ease, box-shadow .18s ease; background: linear-gradient(160deg, #14291d 0%, #0b1610 62%, #10201a 100%); box-shadow: 0 0 0 1px {{ c.edge }}, 0 8px 20px rgba(0,0,0,.55); display: flex; align-items: center; justify-content: flex-start; padding-left: 3px;" style-hover="transform: translateY(-14%); box-shadow: 0 0 0 1px #34d17c, 0 16px 32px rgba(0,0,0,.6);">
+                  <span style="width: 6px; height: 6px; flex: 0 0 auto; transform: rotate(45deg); border: 1px solid {{ c.mark }};"></span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+
+      <div style="flex: 6 1 0; min-height: 0; display: flex; flex-wrap: wrap; align-content: stretch; align-items: stretch; justify-content: center; gap: 8px 14px; width: 100%; max-width: {{ rowMax }}px; margin: 0 auto;">
+        <sc-for list="{{ slots }}" as="k" hint-placeholder-count="3">
+          <div style="flex: 0 1 {{ k.w }}px; min-width: 0; max-width: {{ k.w }}px; display: flex; flex-direction: column; gap: 5px; min-height: 0;">
+            <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: {{ k.labelColor }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.label }}</div>
+            <div onClick="{{ k.onFlip }}" style="position: relative; width: 100%; flex: 1 1 auto; min-height: 0; max-height: {{ k.h }}px; perspective: 1200px; cursor: {{ k.cursor }}; pointer-events: {{ k.pointer }};">
+              <div style="position: absolute; inset: 0; transform-style: preserve-3d; transition: transform .6s cubic-bezier(.2,.7,.2,1); transform: rotateY({{ k.flip }}deg);">
+                <div style="position: absolute; inset: 0; backface-visibility: hidden; border-radius: 10px; border: 1px dashed {{ k.emptyBorder }}; background: {{ k.emptyBg }}; display: flex; align-items: center; justify-content: center; opacity: {{ k.backOpacity }};">
+                  <span style="width: 20px; height: 20px; transform: rotate(45deg); border: 1px solid {{ k.emptyMark }};"></span>
+                </div>
+                <div style="position: absolute; inset: 0; backface-visibility: hidden; transform: rotateY(180deg); border-radius: 10px; overflow: hidden; background: linear-gradient(180deg, #0d1712, #0a1310); box-shadow: 0 0 0 1px #23392c, 0 10px 30px rgba(0,0,0,.5);">
+                  <div style="position: absolute; inset: 0; transform: rotate({{ k.faceRot }}deg); display: flex; flex-direction: column; justify-content: flex-end; gap: 3px; padding: 10px; overflow: hidden;">
+                    <span style="position: absolute; inset: 0; background-image: {{ k.bgImage }}; background-size: cover; background-position: center;"></span>
+                    <span style="position: absolute; inset: 0; display: {{ k.scrimShow }}; background: linear-gradient(to top, rgba(7,13,9,.94) 0%, rgba(7,13,9,.72) 26%, rgba(7,13,9,.1) 52%, rgba(7,13,9,.5) 100%);"></span>
+                    <span style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: #7fe0ab; position: relative; display: {{ k.kickerShow }}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ k.kicker }}</span>
+                    <span style="font-family: Georgia, 'Times New Roman', serif; font-size: {{ k.nameSize }}px; line-height: 1.15; color: #e6efe9; position: relative; text-wrap: pretty;">{{ k.name }}</span>
+                    <span style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #86998d; position: relative;">{{ k.orient }}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </section>
+  </sc-if>
+
+  <sc-if value="{{ onResult }}" hint-placeholder-val="{{ false }}">
+    <section data-screen-label="03 Разбор" style="flex: 1 1 auto; min-height: 0; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) 430px; gap: 44px; padding: 18px 40px 22px; max-width: 1420px; width: 100%; margin: 0 auto; box-sizing: border-box; animation: fadeUp .4s ease both;">
+      <div style="min-height: 0; display: flex; flex-direction: column;">
+        <sc-if value="{{ hasVerdict }}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: baseline; gap: 16px; margin-bottom: 12px;">
+            <span style="font-family: Georgia, 'Times New Roman', serif; font-size: 40px; color: #34d17c;">{{ verdictText }}</span>
+            <span style="font-size: 13px; color: #7b8f81;">Ответ пришёл вместе с картой.</span>
+          </div>
+        </sc-if>
+        <h2 style="font-family: Georgia, 'Times New Roman', serif; font-weight: 400; font-size: 26px; margin: 0 0 6px;">{{ spreadName }}</h2>
+        <sc-if value="{{ hasQuestion }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 14px; color: #86998d; margin-bottom: 12px; text-wrap: pretty;">Вопрос: «{{ question }}»</div>
+        </sc-if>
+
+        <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 14px;">
+          <sc-if value="{{ hasResult }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ onReinterpret }}" disabled="{{ interpreting }}" style="cursor: {{ busyCursor }}; opacity: {{ busyOpacity }}; font-family: inherit; font-weight: 500; font-size: 14px; padding: 10px 20px; border-radius: 10px; background: linear-gradient(165deg, #4fe294, #23b365); border: 0; color: #06170e; white-space: nowrap;">{{ reinterpretLabel }}</button>
+          </sc-if>
+          <sc-if value="{{ showRetry }}" hint-placeholder-val="{{ false }}">
+            <button type="button" onClick="{{ onReinterpret }}" style="cursor: pointer; font-family: inherit; font-weight: 500; font-size: 14px; padding: 10px 20px; border-radius: 10px; background: linear-gradient(165deg, #4fe294, #23b365); border: 0; color: #06170e; white-space: nowrap;">Повторить разбор</button>
+          </sc-if>
+          <button type="button" onClick="{{ onReset }}" style="cursor: pointer; font-family: inherit; font-size: 14px; padding: 10px 20px; border-radius: 10px; background: #101c15; border: 1px solid #23392c; color: #cfe6d8; white-space: nowrap;" style-hover="border-color: #34d17c; background: #14251b;">В начало</button>
+          <div style="display: flex; gap: 4px; padding: 3px; border: 1px solid #1a2a21; border-radius: 10px; background: #0b1410; margin-left: 4px;">
+            <sc-for list="{{ tones }}" as="t" hint-placeholder-count="3">
+              <button type="button" onClick="{{ t.onPick }}" disabled="{{ t.disabled }}" style="cursor: {{ t.cursor }}; opacity: {{ t.opacity }}; font-family: inherit; font-size: 12px; padding: 6px 13px; border-radius: 7px; background: {{ t.bg }}; border: 1px solid {{ t.border }}; color: {{ t.fg }}; white-space: nowrap;">{{ t.name }}</button>
+            </sc-for>
+          </div>
+        </div>
+
+        <sc-if value="{{ interpreting }}" hint-placeholder-val="{{ false }}">
+          <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 13px; color: #7fe0ab; animation: pulse 1.4s ease-in-out infinite;">Тасуем слова…</div>
+        </sc-if>
+        <sc-if value="{{ isBasic }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size: 12px; color: #86998d; margin-bottom: 8px;">ИИ-интерпретация сейчас недоступна, поэтому показываем базовый разбор по значениям карт.</div>
+        </sc-if>
+        <sc-if value="{{ hasText }}" hint-placeholder-val="{{ false }}">
+          <div style="min-height: 0; overflow-y: auto; padding: 20px 22px; border-radius: 14px; background: linear-gradient(180deg, #0d1712, #0a1310); border: 1px solid #1a2a21; font-size: 15px; line-height: 1.66; color: #cfe0d5; white-space: pre-wrap; text-wrap: pretty;">{{ interpretationText }}</div>
+        </sc-if>
+      </div>
+
+      <aside style="min-height: 0; display: flex; flex-direction: column;">
+        <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: #5f7469; margin-bottom: 10px; flex: 0 0 auto;">Выпало</div>
+        <div style="min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 6px;">
+          <sc-for list="{{ summary }}" as="r" hint-placeholder-count="3">
+            <div style="display: flex; gap: 14px; align-items: flex-start; padding: 12px; border-radius: 12px; background: linear-gradient(180deg, #0d1712, #0a1310); border: 1px solid #1a2a21;">
+              <div style="flex: 0 0 auto; width: 52px; height: 86px; border-radius: 7px; overflow: hidden; position: relative; background: linear-gradient(160deg, #14291d 0%, #0b1610 62%, #10201a 100%); box-shadow: 0 0 0 1px #22392c;">
+                <span style="position: absolute; inset: 0; display: {{ r.markShow }}; align-items: center; justify-content: center;"><span style="width: 12px; height: 12px; transform: rotate(45deg); border: 1px solid #2f7a52;"></span></span>
+                <span style="position: absolute; inset: 0; background-image: {{ r.bgImage }}; background-size: cover; background-position: center; transform: rotate({{ r.faceRot }}deg);"></span>
+              </div>
+              <div style="min-width: 0;">
+                <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: #5f7469; margin-bottom: 4px;">{{ r.label }}</div>
+                <div style="font-family: Georgia, 'Times New Roman', serif; font-size: 16px; color: #e6efe9; margin-bottom: 2px;">{{ r.name }}</div>
+                <div style="font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace; font-size: 9px; letter-spacing: .08em; text-transform: uppercase; color: #86998d; margin-bottom: 4px;">{{ r.orient }}</div>
+                <div style="font-size: 12.5px; line-height: 1.5; color: #7b8f81; text-wrap: pretty;">{{ r.meaning }}</div>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </aside>
+    </section>
+  </sc-if>
+
+  <footer style="flex: 0 0 auto; display: flex; justify-content: space-between; gap: 32px; padding: 9px 40px 12px; max-width: 1420px; width: 100%; margin: 0 auto; box-sizing: border-box; border-top: 1px solid #121c16;">
+    <span style="font-size: 11px; color: #5f7469;">Развлекательный сервис. Решений на основании картинок с мечами лучше не принимать.</span>
+  </footer>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;reversals&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Расклад&quot;},&quot;cardArt&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;type&quot;,&quot;rws&quot;],&quot;default&quot;:&quot;rws&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Отображение&quot;}}">
+// Thin client. All Tarot domain logic lives behind TarotBackendConnector.
+class Component extends DCLogic {
+  state = {
+    step: "start",
+    sessionId: null,
+    spread: null,
+    deckSize: 78,
+    question: "",
+    tone: "ironic",
+    takenSlots: [],
+    drawn: [],
+    flipped: [],
+    verdictText: "",
+    interpretation: null,
+    creating: false,
+    interpreting: false,
+    pendingSlot: null,
+    error: "",
+    imgOk: {},
+  };
+
+  gen = 0;
+  advancing = false;
+  advanceTimer = null;
+  probed = {};
+  idleTimer = null;
+  IDLE_MS = 5 * 60 * 1000;
+
+  CATALOG = [
+    { id: "day", name: "Карта дня", blurb: "Одна карта на сегодня.", cards: 1, code: "spr-day-001", badge: "Каждый день", mins: 2 },
+    { id: "yesno", name: "Да / Нет", blurb: "Ответ без ответственности.", cards: 1, code: "spr-bin-014", badge: "Быстро", mins: 1 },
+    { id: "three", name: "Три карты", blurb: "Прошлое, настоящее, будущее.", cards: 3, code: "spr-ppf-003", badge: "Классика", mins: 6 },
+    { id: "love", name: "Отношения", blurb: "Вы, они и всё, что между.", cards: 5, code: "spr-rel-021", badge: "Двое", mins: 12 },
+    { id: "cross", name: "Кельтский крест", blurb: "Полчаса и максимум серьёзности.", cards: 10, code: "spr-cel-010", badge: "Максимум", mins: 25 },
+  ];
+
+  TONES = [{ id: "ironic", name: "Ироничный" }, { id: "warm", name: "Тёплый" }, { id: "dry", name: "Сухой" }];
+
+  ERRORS = {
+    SESSION_EXPIRED: "Сессия завершилась. Начните новый расклад.",
+    SESSION_NOT_FOUND: "Сессия завершилась. Начните новый расклад.",
+    SPREAD_COMPLETE: "Все карты для этого расклада уже выбраны.",
+    SPREAD_NOT_FOUND: "Не удалось начать расклад. Попробуйте ещё раз.",
+    SLOT_OUT_OF_RANGE: "Не удалось открыть карту. Выберите ещё раз.",
+    BACKEND_UNAVAILABLE: "Сервис недоступен. Попробуйте позже.",
+  };
+
+  componentDidMount() {
+    this.onActivity = () => this.armIdle();
+    ["pointerdown", "click", "keydown", "touchstart"].forEach((ev) =>
+      window.addEventListener(ev, this.onActivity, { passive: true })
+    );
+    this.armIdle();
+  }
+
+  componentWillUnmount() {
+    ["pointerdown", "click", "keydown", "touchstart"].forEach((ev) =>
+      window.removeEventListener(ev, this.onActivity)
+    );
+    clearTimeout(this.idleTimer);
+    this.cancelAdvance();
+  }
+
+  cancelAdvance() {
+    clearTimeout(this.advanceTimer);
+    this.advanceTimer = null;
+    this.advancing = false;
+  }
+
+  // Single path for a session the backend no longer knows about.
+  handleSessionExpired() {
+    this.gen += 1;
+    this.cancelAdvance();
+    this.probed = {};
+    this.setState({
+      step: "start", sessionId: null, spread: null, question: "", takenSlots: [], drawn: [],
+      flipped: [], verdictText: "", interpretation: null, creating: false, interpreting: false,
+      pendingSlot: null, imgOk: {}, error: this.ERRORS.SESSION_EXPIRED,
+    });
+  }
+
+  expired(err) {
+    return !!err && (err.code === "SESSION_EXPIRED" || err.code === "SESSION_NOT_FOUND");
+  }
+
+  armIdle() {
+    clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      if (this.state.step !== "start" || this.state.sessionId) this.resetAll();
+    }, this.IDLE_MS);
+  }
+
+  fresh(g) { return g === this.gen; }
+
+  cardWord(n) {
+    const tens = n % 100;
+    if (tens >= 11 && tens <= 14) return "карт";
+    const ones = n % 10;
+    if (ones === 1) return "карта";
+    if (ones >= 2 && ones <= 4) return "карты";
+    return "карт";
+  }
+
+  message(err) {
+    return (err && this.ERRORS[err.code]) || "Что-то пошло не так. Попробуйте ещё раз.";
+  }
+
+  resetAll() {
+    const id = this.state.sessionId;
+    this.gen += 1;
+    this.cancelAdvance();
+    if (id) TarotBackendConnector.resetSession({ sessionId: id }).catch(() => {});
+    this.probed = {};
+    this.setState({
+      step: "start", sessionId: null, spread: null, question: "", takenSlots: [], drawn: [],
+      flipped: [], verdictText: "", interpretation: null, creating: false, interpreting: false,
+      pendingSlot: null, error: "", imgOk: {},
+    });
+  }
+
+  async startSpread(spreadId) {
+    this.gen += 1;
+    this.cancelAdvance();
+    const g = this.gen;
+    const prev = this.state.sessionId;
+    if (prev) TarotBackendConnector.resetSession({ sessionId: prev }).catch(() => {});
+    this.probed = {};
+    this.setState({
+      step: "draw", sessionId: null, spread: null, question: "", takenSlots: [], drawn: [],
+      flipped: [], verdictText: "", interpretation: null, creating: true, interpreting: false,
+      pendingSlot: null, error: "", imgOk: {},
+    });
+    try {
+      const res = await TarotBackendConnector.createSession({ spreadId, reversals: this.props.reversals !== false });
+      if (!this.fresh(g)) return;
+      this.setState({
+        sessionId: res.sessionId,
+        spread: res.spread,
+        deckSize: (res.deck && res.deck.size) || 78,
+        flipped: new Array(res.spread.cardsRequired).fill(false),
+        creating: false,
+      });
+    } catch (err) {
+      if (!this.fresh(g)) return;
+      this.setState({ creating: false, step: "start", error: this.message(err) });
+    }
+  }
+
+  async pickSlot(slot) {
+    const st = this.state;
+    if (!st.sessionId || !st.spread) return;
+    if (st.pendingSlot !== null) return;
+    if (st.takenSlots.indexOf(slot) !== -1) return;
+    if (st.drawn.length >= st.spread.cardsRequired) return;
+
+    const g = this.gen;
+    const sessionId = st.sessionId;
+    this.setState({ pendingSlot: slot, error: "" });
+    try {
+      const res = await TarotBackendConnector.drawCard({ sessionId, slot });
+      if (!this.fresh(g) || this.state.sessionId !== sessionId) return;
+      this.probeImage(res.card);
+      this.setState((s) => ({
+        pendingSlot: null,
+        takenSlots: s.takenSlots.concat([slot]),
+        drawn: s.drawn.concat([{ position: res.position, card: res.card }]),
+        verdictText: res.verdictText || s.verdictText,
+      }));
+    } catch (err) {
+      if (!this.fresh(g) || this.state.sessionId !== sessionId) return;
+      if (this.expired(err)) { this.handleSessionExpired(); return; }
+      this.setState({ pendingSlot: null, error: this.message(err) });
+    }
+  }
+
+  flip(i) {
+    if (!this.state.drawn[i]) return;
+    if (this.state.flipped[i]) return;
+    const f = this.state.flipped.slice();
+    f[i] = true;
+    this.setState({ flipped: f });
+  }
+
+  componentDidUpdate() {
+    const st = this.state;
+    if (st.step !== "draw" || !st.spread || this.advancing) return;
+    const n = st.spread.cardsRequired;
+    if (st.drawn.length !== n) return;
+    if (!st.flipped.slice(0, n).every(Boolean)) return;
+    this.advancing = true;
+    const g = this.gen;
+    const sessionId = st.sessionId;
+    this.advanceTimer = setTimeout(() => {
+      this.advanceTimer = null;
+      this.advancing = false;
+      if (!this.fresh(g) || this.state.sessionId !== sessionId || this.state.step !== "draw") return;
+      this.setState({ step: "result" });
+      this.interpret();
+    }, 900);
+  }
+
+  async interpret() {
+    const st = this.state;
+    if (!st.sessionId || st.interpreting) return;
+    const g = this.gen;
+    const sessionId = st.sessionId;
+    this.setState({ interpreting: true, error: "" });
+    try {
+      const res = await TarotBackendConnector.interpret({ sessionId, question: st.question, tone: st.tone });
+      if (!this.fresh(g) || this.state.sessionId !== sessionId) return;
+      this.setState({ interpreting: false, interpretation: res });
+    } catch (err) {
+      if (!this.fresh(g) || this.state.sessionId !== sessionId) return;
+      if (this.expired(err)) { this.handleSessionExpired(); return; }
+      this.setState({ interpreting: false, error: this.message(err) });
+    }
+  }
+
+  probeImage(card) {
+    if ((this.props.cardArt || "type") !== "rws") return;
+    if (!card || !card.imageUrl || this.probed[card.id]) return;
+    this.probed[card.id] = true;
+    const g = this.gen;
+    const sessionId = this.state.sessionId;
+    const im = new Image();
+    const mark = (ok) => {
+      if (!this.fresh(g) || this.state.sessionId !== sessionId) return;
+      this.setState((s) => {
+        const next = Object.assign({}, s.imgOk);
+        next[card.id] = ok;
+        return { imgOk: next };
+      });
+    };
+    im.onload = () => mark(true);
+    im.onerror = () => mark(false);
+    im.src = card.imageUrl;
+  }
+
+  renderVals() {
+    const st = this.state;
+    const sp = st.spread;
+    const art = this.props.cardArt || "type";
+    const n = sp ? sp.cardsRequired : 0;
+    const need = n - st.drawn.length;
+    const w = n >= 5 ? 128 : 146;
+    const h = Math.round(w * 1.63);
+    const rowMax = n >= 10 ? 5 * w + 4 * 14 : 4000;
+    const compact = n >= 10;
+
+    const tabOn = { bg: "#12241a", border: "#2c5740", fg: "#7fe0ab" };
+    const tabOff = { bg: "transparent", border: "transparent", fg: "#6f857a" };
+    const tab = (on) => (on ? tabOn : tabOff);
+    const a = tab(st.step === "start"), b = tab(st.step === "draw"), c2 = tab(st.step === "result");
+
+    const showsImg = (card) => !!(card && art === "rws" && st.imgOk[card.id] === true);
+    const bgFor = (card) => (showsImg(card) ? 'url("' + card.imageUrl + '")' : "none");
+
+    // Fan geometry is derived from the deck size and the container width, in percent:
+    // cards are stepped across 92% of the width, sagged on a parabola and tilted outward.
+    const fanCards = [];
+    if (sp) {
+      const total = st.deckSize;
+      const spanPct = 92;
+      const cardPct = 5.6;
+      for (let i = 0; i < total; i++) {
+        const taken = st.takenSlots.indexOf(i) !== -1;
+        const busy = st.pendingSlot === i;
+        const t = total > 1 ? (i / (total - 1)) * 2 - 1 : 0;
+        fanCards.push({
+          left: (50 + (t * spanPct) / 2).toFixed(3),
+          top: (3 + 20 * t * t).toFixed(3),
+          w: cardPct,
+          rot: (t * 13).toFixed(2),
+          z: i,
+          opacity: taken ? 0.07 : busy ? 0.45 : 1,
+          pe: taken || busy || need <= 0 || st.pendingSlot !== null ? "none" : "auto",
+          cursor: need > 0 ? "pointer" : "default",
+          edge: busy ? "#34d17c" : "#22392c",
+          mark: busy ? "#34d17c" : "#2f7a52",
+          onPick: () => this.pickSlot(i),
+        });
+      }
+    }
+
+    const positions = sp ? sp.positions : [];
+    const slots = positions.map((pos, i) => {
+      const d = st.drawn[i];
+      const card = d ? d.card : null;
+      const up = !!st.flipped[i];
+      return {
+        label: pos.name,
+        w: w, h: h,
+        nameSize: compact ? 13 : 16,
+        kickerShow: compact ? "none" : "block",
+        labelColor: d ? "#7fe0ab" : "#5f7469",
+        cursor: d && !up ? "pointer" : "default",
+        pointer: d && !up ? "auto" : "none",
+        onFlip: () => this.flip(i),
+        flip: up ? 180 : 0,
+        backOpacity: 1,
+        emptyBorder: d ? "transparent" : "#1e2f26",
+        emptyBg: d ? "linear-gradient(160deg, #14291d 0%, #0b1610 62%, #10201a 100%)" : "transparent",
+        emptyMark: d ? "#2f7a52" : "#1e2f26",
+        name: card ? card.name : "",
+        kicker: card ? (card.element ? card.arcana + " · " + card.element : card.arcana || "") : "",
+        orient: card ? (card.reversed ? "Перевёрнутая" : "Прямая") : "",
+        faceRot: card && card.reversed ? 180 : 0,
+        bgImage: bgFor(card),
+        scrimShow: showsImg(card) ? "block" : "none",
+      };
+    });
+
+    const interp = st.interpretation;
+
+    return {
+      deckSize: st.deckSize,
+      onStart: st.step === "start",
+      onDraw: st.step === "draw",
+      onResult: st.step === "result",
+      navABg: a.bg, navABorder: a.border, navAFg: a.fg,
+      navBBg: b.bg, navBBorder: b.border, navBFg: b.fg,
+      navCBg: c2.bg, navCBorder: c2.border, navCFg: c2.fg,
+
+      catalog: this.CATALOG.map((s) => ({
+        name: s.name, blurb: s.blurb, cards: s.cards, badge: s.badge, mins: s.mins,
+        onPick: () => this.startSpread(s.id),
+      })),
+      onQuickDay: () => this.startSpread("day"),
+
+      spreadName: sp ? sp.name : "",
+      spreadCode: sp ? n + " " + this.cardWord(n) : "",
+      question: st.question,
+      hasQuestion: !!st.question.trim(),
+      onQuestion: (e) => { this.armIdle(); this.setState({ question: e.target.value.slice(0, 300) }); },
+
+      creating: st.creating,
+      showFan: !st.creating && !!sp,
+      fanCards: fanCards,
+      pickHint: !sp ? "" : st.pendingSlot !== null ? "Открываем…" : need > 0 ? "Выберите ещё " + need : "Кликните по рубашке, чтобы перевернуть",
+      slots: slots,
+      rowMax: rowMax,
+
+      hasVerdict: !!st.verdictText,
+      verdictText: st.verdictText,
+      interpreting: st.interpreting,
+      isBasic: !!interp && interp.type === "basic" && !st.interpreting,
+      hasText: !!interp && !!interp.text && !st.interpreting,
+      interpretingFirst: st.interpreting && !interp,
+      interpretationText: interp ? interp.text : "",
+      onReinterpret: () => this.interpret(),
+      onReset: () => this.resetAll(),
+      hasResult: !!interp,
+      showRetry: !interp && !st.interpreting && !!st.error,
+      reinterpretLabel: st.interpreting ? "Пересобираем…" : "Пересобрать разбор",
+      busyCursor: st.interpreting ? "default" : "pointer",
+      busyOpacity: st.interpreting ? 0.5 : 1,
+
+      tones: this.TONES.map((t) => {
+        const on = t.id === st.tone;
+        return {
+          name: t.name,
+          bg: on ? "#12241a" : "transparent",
+          border: on ? "#2c5740" : "transparent",
+          fg: on ? "#7fe0ab" : "#6f857a",
+          disabled: st.interpreting,
+          cursor: st.interpreting ? "default" : "pointer",
+          opacity: st.interpreting ? 0.5 : 1,
+          onPick: () => { if (!this.state.interpreting) this.setState({ tone: t.id }); },
+        };
+      }),
+
+      summary: st.drawn.map((d) => ({
+        label: d.position.name,
+        name: d.card.name,
+        orient: d.card.reversed ? "Перевёрнутая" : "Прямая",
+        meaning: d.card.meaning || "",
+        bgImage: bgFor(d.card),
+        markShow: showsImg(d.card) ? "none" : "flex",
+        faceRot: d.card.reversed ? 180 : 0,
+      })),
+
+      hasError: !!st.error,
+      errorText: st.error,
+      onDismissError: () => this.setState({ error: "" }),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

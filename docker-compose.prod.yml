@@ -1,0 +1,29 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: taro-night-arcana-backend:prod
+    env_file:
+      - .env
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    image: taro-night-arcana-frontend:prod
+    restart: unless-stopped
+
+  proxy:
+    image: nginx:1.27-alpine
+    depends_on:
+      - backend
+      - frontend
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    restart: unless-stopped
